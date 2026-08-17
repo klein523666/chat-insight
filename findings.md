@@ -2,6 +2,10 @@
 
 ## 2026-08-17
 
+- 公开仓库、附注标签与 GitHub Release `v0.1.0` 已发布。主分支和标签 CI 全绿；
+  两个 GHCR linux/amd64 镜像的 `0.1.0` 标签均通过无登录 Docker 配置匿名拉取。
+  从公开标签干净克隆后，Compose 校验与 Core `/health` 冒烟通过。
+
 - 两个 22:00 日报同时运行时，旧实现会在 LLM 网络调用期间持有 `report_runs` 的
   SQLite 写事务，导致另一个任务 `database is locked`，采集和设置写入也可能被
   阻塞。修复后所有报告入口由共享 `ReportService` 串行，且 `ReportRun` 延后到 AI

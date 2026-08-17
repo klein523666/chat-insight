@@ -40,7 +40,7 @@
 - [x] Telegram 升级旧群识别、自动关闭与 WebUI“已迁移”状态验证
 - [x] 专用 QQ/TG/LLM/飞书真实端到端验收
 - [x] 有业务数据的完整 Docker restart 持久化与故障验收（QQ 登录按已确认上游限制验收）
-- [ ] GitHub Actions、公开 GHCR 镜像和 v0.1.0 Release 发布
+- [x] GitHub Actions、公开 GHCR 镜像和 v0.1.0 Release 发布
 
 本地质量门：ruff、mypy strict、36 项 pytest、2 项前端测试、前端 lint/build、Compose config
 均通过。Docker Desktop linux/amd64 实测中，Core（约 211MB）与 Telegram
@@ -62,3 +62,7 @@ Scheduler 还成功补偿先前遗漏的 22:00 日报（1,458 条、AI success�
 NapCat 上游会向 stdout 输出临时二维码，Compose 已禁用该容器 Docker 日志。
 2C4G VPS 验证已按用户确认延期到发布后，文档
 只能标注为未验证，不能宣称对应性能结论。
+
+v0.1.0 已发布到公开仓库 `klein523666/chat-insight`。主分支和标签 CI 均成功，
+Core/TG 的 `0.1.0`、`v0.1.0`、`latest` GHCR 标签已推送并通过全新匿名 Docker
+配置拉取；公开标签干净克隆后的 Compose 校验与 Core `/health` 冒烟通过。
