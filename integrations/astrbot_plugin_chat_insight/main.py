@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from astrbot.api import AstrBotConfig, logger
+from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
 from astrbot.core.utils.astrbot_path import get_astrbot_plugin_data_path
@@ -47,8 +47,9 @@ def normalize_segments(segments: Any) -> tuple[str, list[dict[str, Any]], str | 
 
 
 class ChatInsightQQAdapter(Star):
-    def __init__(self, context: Context, config: AstrBotConfig) -> None:
-        super().__init__(context)
+    def __init__(self, context: Context, config: dict[str, Any] | None = None) -> None:
+        super().__init__(context, config)
+        config = config or {}
         self.config = config
         self.core_url = str(config.get("core_url", "http://chat-insight:8080")).rstrip("/")
         token_file = Path(str(config.get("collector_token_file", "/run/secrets/collector_token")))
@@ -58,7 +59,7 @@ class ChatInsightQQAdapter(Star):
             else str(config.get("collector_token", ""))
         )
         self.enabled: dict[str, set[str]] = {}
-        data_dir = Path(get_astrbot_plugin_data_path("astrbot_plugin_chat_insight"))
+        data_dir = Path(get_astrbot_plugin_data_path()) / "astrbot_plugin_chat_insight"
         self.outbox = Outbox(data_dir / "outbox.db")
         self.tasks = [
             asyncio.create_task(self._sender(), name="chat-insight-qq-sender"),

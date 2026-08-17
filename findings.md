@@ -2,6 +2,11 @@
 
 ## 2026-08-17
 
+- AstrBot v4.27.3 在插件尚无配置实例时只传入 `context`，且
+  `get_astrbot_plugin_data_path()` 不接受插件名参数。QQ Adapter 构造器必须允许
+  `config=None`，数据目录应在框架返回的 `plugin_data` 根目录下创建独立子目录；
+  修复后插件加载无 Traceback，Core 收到 QQ Collector healthy 心跳。
+
 - 专用 Telegram 账号已真实登录并进入 `Ready`；UI 展示的会话总数包含不可采集
   会话，Core 最终发现 184 个群、超级群或频道来源。
 - 登录后数据库中 Telegram 来源启用数为 0、Telegram 消息数为 0，证明来源发现
