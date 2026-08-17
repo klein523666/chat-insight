@@ -19,8 +19,16 @@
 1. 阅读并接受 NapCat 上游许可；本项目不提供 QQ 协议或凭据。
 2. 使用 `qq` Profile 启动官方 NapCat/AstrBot 镜像。
 3. 在 NapCat 扫码登录自己的 QQ，在 AstrBot 创建 OneBot v11 连接。
-4. 仓库内 Adapter 通过只读 bind mount 安装，并从 Docker secret 读取 Token。
-5. WebUI 消息源页面明确启用群。Core 离线时消息先进入 AstrBot Volume 内 Outbox。
+   Compose 禁用 NapCat 容器的 Docker 日志，避免上游输出的临时二维码链接被
+   持久化；扫码和 QQ 诊断只使用绑定本机回环地址的临时管理页面。
+4. 后续启动会从唯一的 NapCat 持久配置自动选择账号；若 Volume 中存在多个账号，
+   在 Git 忽略的 `deploy/.env` 中设置 `NAPCAT_ACCOUNT=<QQ号>` 明确选择。
+5. 若 QQ 拒绝仅凭 Session 快速登录，在本机
+   `deploy/secrets/napcat_quick_password.txt` 填写专用账号密码。该文件只以 Docker
+   secret 挂载，不得提交、截图或发送到聊天；不需要密码回退时保持空文件。部分
+   账号仍可能被 QQ 登录接口拒绝，并在 NapCat 重启后要求重新扫码。
+6. 仓库内 Adapter 通过只读 bind mount 安装，并从 Docker secret 读取 Token。
+7. WebUI 消息源页面明确启用群。Core 离线时消息先进入 AstrBot Volume 内 Outbox。
 
 ## 备份与升级
 

@@ -14,8 +14,11 @@ secret master_key -base64
 secret collector_token -hex
 secret setup_token -hex
 secret tdlib_database_key -hex
+quick_password="$(dirname "$0")/secrets/napcat_quick_password.txt"
+[ -f "$quick_password" ] || : >"$quick_password"
 
 echo "Secrets 已生成。一次性 Setup Token："
 cat "$(dirname "$0")/secrets/setup_token.txt"
 echo
+echo "若 NapCat 快速登录要求密码回退，请在本机填写 deploy/secrets/napcat_quick_password.txt。"
 echo "启动：cd deploy && docker compose up -d"

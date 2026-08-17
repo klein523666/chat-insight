@@ -28,7 +28,7 @@ SQLite 为单一真相，使用 WAL、foreign keys 和 5 秒 busy timeout。消�
 
 确定性统计由 Python 计算。上下文按 Source 分组并按字符预算分块；小窗口直接分析，大窗口先生成 source summaries，再合并。结构化输出尝试 `json_schema`、`json_object`、纯 JSON；校验/修复失败时输出纯统计报告。
 
-模型只能返回 evidence message IDs，引用文本由 Core 从本次窗口内数据库记录回填。飞书默认 interactive card，按 UTF-8 字节数分片到 30KB 以下，重试 429、5xx 与网络超时。
+模型只能返回 evidence message IDs，引用文本由 Core 从本次窗口内数据库记录回填。飞书默认 interactive card，正文按 18KB 安全预算分片并保证完整请求体低于自定义机器人的 20KB 限制，重试 429、5xx 与网络超时。
 
 ## Docker 与许可
 

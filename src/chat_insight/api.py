@@ -47,6 +47,7 @@ from .schemas import (
     MessageBatch,
     ReportTaskInput,
     SetupRequest,
+    SourceBulkPatch,
     SourcePatch,
     SourceUpsert,
     TelegramConfigInput,
@@ -304,6 +305,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await session.commit()
         return _source_dict(row)
 
+    @app.patch("/api/v1/sources:batch")
+    async def patch_sources(
+        payload: SourceBulkPatch,
+        _: WebSession = Depends(csrf),
+        session: AsyncSession = Depends(db_session),
+    ) -> dict[str, list[dict[str, Any]]]:
+        source_ids = set(payload.source_ids)
+        rows = (
+            await session.scalars(select(Source).where(Source.id.in_(source_ids)))
+        ).all()
+        if len(rows) != len(source_ids):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source not found")
+        if payload.enabled and any(row.status == "migrated" for row in rows):
+            raise HTTPException(status.HTTP_409_CONFLICT, "Migrated source cannot be enabled")
+        for row in rows:
+            row.enabled = payload.enabled
+        await session.commit()
+        return {"sources": [_source_dict(row) for row in rows]}
+
     @app.post("/internal/v1/sources:upsert", dependencies=[Depends(internal_auth)])
     async def internal_sources(
         payloads: list[SourceUpsert], session: AsyncSession = Depends(db_session)
@@ -512,6 +532,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await session.commit()
         await session.refresh(row)
         return {"id": row.id, "name": row.name, "enabled": row.enabled}
+
+    @app.delete("/api/v1/delivery-targets/{target_id}")
+    async def delete_target(
+        target_id: int,
+        _: WebSession = Depends(csrf),
+        session: AsyncSession = Depends(db_session),
+    ) -> dict[str, str]:
+        row = await session.get(DeliveryTarget, target_id)
+        if not row:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Target not found")
+        await session.delete(row)
+        await session.commit()
+        return {"status": "deleted"}
 
     @app.post("/api/v1/delivery-targets/{target_id}/test")
     async def test_target(

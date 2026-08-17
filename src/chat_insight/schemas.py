@@ -34,6 +34,11 @@ class SourcePatch(BaseModel):
     report_enabled: bool | None = None
 
 
+class SourceBulkPatch(BaseModel):
+    source_ids: list[int] = Field(min_length=1, max_length=1000)
+    enabled: bool
+
+
 class UnifiedMessage(BaseModel):
     platform: str = Field(min_length=1, max_length=40)
     account_id: str = Field(min_length=1, max_length=255)

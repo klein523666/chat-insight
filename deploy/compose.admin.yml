@@ -1,7 +1,13 @@
 services:
-  astrbot:
+  admin-proxy:
+    profiles: [qq]
+    image: python:3.12-alpine
+    restart: unless-stopped
+    command: ["python", "/admin_proxy.py"]
+    volumes:
+      - ./admin_proxy.py:/admin_proxy.py:ro
     ports:
       - "127.0.0.1:6185:6185"
-  napcat:
-    ports:
       - "127.0.0.1:6099:6099"
+    networks: [chat_insight_net]
+    depends_on: [astrbot, napcat]

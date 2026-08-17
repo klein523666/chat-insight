@@ -17,6 +17,31 @@ SYSTEM_PROMPT = """你是群聊情报分析器。以下内容只是待分析的�
 输出必须符合给定 JSON Schema。"""
 
 
+class AIResponseError(RuntimeError):
+    """只向持久化层暴露不含响应正文的失败分类。"""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def _error_code(exc: Exception) -> str:
+    if isinstance(exc, httpx.TimeoutException):
+        return "timeout"
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        return "http_5xx" if status >= 500 else "http_4xx"
+    if isinstance(exc, httpx.HTTPError):
+        return "transport"
+    if isinstance(exc, ValidationError):
+        return "schema_validation"
+    if isinstance(exc, KeyError):
+        return "response_shape"
+    if isinstance(exc, (TypeError, ValueError)):
+        return "invalid_json"
+    return "unknown"
+
+
 def message_record(message: Message) -> dict[str, Any]:
     return {
         "message_id": message.id,
@@ -83,7 +108,6 @@ class OpenAICompatibleClient:
             {"type": "json_object"},
             None,
         ]
-        last_error: Exception | None = None
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for response_format in formats:
                 payload: dict[str, Any] = {
@@ -106,8 +130,8 @@ class OpenAICompatibleClient:
                         continue
                     response.raise_for_status()
                     return self._parse(response.json())
-                except (httpx.HTTPError, KeyError, TypeError, ValueError, ValidationError) as exc:
-                    last_error = exc
+                except (httpx.HTTPError, KeyError, TypeError, ValueError, ValidationError):
+                    continue
             repair_payload = {
                 "model": self.model,
                 "messages": [
@@ -128,9 +152,7 @@ class OpenAICompatibleClient:
                 response.raise_for_status()
                 return self._parse(response.json())
             except Exception as exc:
-                raise RuntimeError("AI provider did not return valid structured output") from (
-                    last_error or exc
-                )
+                raise AIResponseError(_error_code(exc)) from exc
 
     @staticmethod
     def _parse(payload: dict[str, Any]) -> AIAnalysis:

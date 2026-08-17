@@ -34,5 +34,5 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return payload as T;
 }
 
-export const mutate = <T>(path: string, method: "POST" | "PUT" | "PATCH", body?: unknown) =>
+export const mutate = <T>(path: string, method: "POST" | "PUT" | "PATCH" | "DELETE", body?: unknown) =>
   api<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });

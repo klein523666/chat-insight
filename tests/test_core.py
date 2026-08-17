@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import sqlite3
 from datetime import UTC, datetime, timedelta
 
 from cryptography.fernet import Fernet
@@ -7,10 +9,12 @@ from fastapi.testclient import TestClient
 
 from chat_insight.api import create_app
 from chat_insight.config import Settings
+from chat_insight.schemas import AIAnalysis
 
 
 def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
     delivered: list[str] = []
+    database_path = tmp_path / "test.db"
 
     async def fake_delivery(webhook, secret, title, markdown):
         from chat_insight.feishu import DeliveryResult
@@ -18,9 +22,18 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
         delivered.append(title)
         return DeliveryResult(True, 200, None, 1)
 
+    async def fake_analysis(self, messages, max_input_chars):
+        def write_during_analysis():
+            with sqlite3.connect(database_path, timeout=1) as connection:
+                connection.execute("UPDATE report_tasks SET updated_at = updated_at")
+
+        await asyncio.to_thread(write_during_analysis)
+        return AIAnalysis(summary="AI 分析成功", conclusion="完成")
+
     monkeypatch.setattr("chat_insight.reports.send_feishu", fake_delivery)
+    monkeypatch.setattr("chat_insight.reports.OpenAICompatibleClient.analyze", fake_analysis)
     settings = Settings(
-        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'test.db').as_posix()}",
+        database_url=f"sqlite+aiosqlite:///{database_path.as_posix()}",
         data_dir=tmp_path,
         master_key=Fernet.generate_key().decode(),
         collector_token="collector-test-token-long",
@@ -60,6 +73,19 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
         csrf = login.json()["csrf_token"]
         user_headers = {"X-CSRF-Token": csrf}
         internal_headers = {"Authorization": f"Bearer {settings.collector_token}"}
+        assert (
+            client.put(
+                "/api/v1/settings/ai",
+                headers=user_headers,
+                json={
+                    "enabled": True,
+                    "base_url": "https://example.com/v1",
+                    "api_key": "test-api-key",
+                    "model": "test-model",
+                },
+            ).status_code
+            == 200
+        )
 
         source_response = client.post(
             "/internal/v1/sources:upsert",
@@ -77,6 +103,13 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
         )
         source = source_response.json()["sources"][0]
         assert source["enabled"] is False
+        bulk_disabled = client.patch(
+            "/api/v1/sources:batch",
+            headers=user_headers,
+            json={"source_ids": [source["id"]], "enabled": False},
+        )
+        assert bulk_disabled.status_code == 200
+        assert bulk_disabled.json()["sources"][0]["enabled"] is False
 
         previous_hour_middle = datetime.now(UTC).replace(
             minute=0, second=0, microsecond=0
@@ -97,12 +130,12 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
             json={"messages": [message]},
         )
         assert rejected.json()["rejected"] == 1
-        assert (
-            client.patch(
-                f"/api/v1/sources/{source['id']}", headers=user_headers, json={"enabled": True}
-            ).status_code
-            == 200
+        bulk_enabled = client.patch(
+            "/api/v1/sources:batch",
+            headers=user_headers,
+            json={"source_ids": [source["id"]], "enabled": True},
         )
+        assert bulk_enabled.status_code == 200
 
         accepted = client.post(
             "/internal/v1/messages:batch",
@@ -160,6 +193,15 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
             == 200
         )
         assert len(delivered) == 1
+
+        deleted = client.delete(
+            f"/api/v1/delivery-targets/{target.json()['id']}", headers=user_headers
+        )
+        assert deleted.status_code == 200
+        assert client.get("/api/v1/delivery-targets", headers=user_headers).json() == []
+        assert client.get("/api/v1/report-tasks", headers=user_headers).json()[0][
+            "delivery_target_ids"
+        ] == []
 
         migrated = client.post(
             "/internal/v1/sources:upsert",

@@ -6,9 +6,9 @@ Chat Insight 实时采集你有权查看、且明确启用的 QQ 群与 Telegram
 群/超级群/频道消息，统一保存、统计和 AI 分析，并按小时或自然日自动发送
 飞书报告。
 
-> **状态：v0.1.0 开发版。** 自动化测试和 Telegram 真实闭环已通过；发布前仍需
-> 完成专用 QQ、LLM、飞书、报告和完整重启验收。2C4G VPS 性能尚未验证，不会被
-> 描述为“已验证”。
+> **状态：v0.1.0 发布候选。** 本机自动化、Telegram、QQ、LLM、飞书、三类报告与
+> 有数据重启闭环均已通过；GitHub Actions、公开镜像与 Release 尚待发布。2C4G VPS
+> 性能尚未验证，不会被描述为“已验证”。
 
 ## 功能
 
@@ -53,11 +53,17 @@ ssh -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 user@your-server
 ```
 
 完成 QQ 扫码、NapCat → AstrBot OneBot v11 连接和插件确认后，改用基础
-`compose.yml` 重建，移除管理端口映射：
+`compose.yml` 移除临时代理；AstrBot/NapCat 不会因此重建。单账号会从持久配置
+自动选择；仅当存在多个账号时才需在 `deploy/.env` 设置 `NAPCAT_ACCOUNT`：
 
 ```bash
 docker compose --profile qq up -d
 ```
+
+若 QQ 拒绝仅凭 Session 快速登录，可在本机
+`deploy/secrets/napcat_quick_password.txt` 填写专用账号密码作为 NapCat 回退；该
+Git 忽略文件只以 Docker secret 挂载，禁止提交或发送到聊天。部分账号仍会被 QQ
+登录接口拒绝并在 NapCat 重启后要求重新扫码，这是 v0.1.0 的已知上游限制。
 
 ## 开发
 

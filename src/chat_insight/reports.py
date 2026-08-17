@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import Counter
 from datetime import UTC, datetime, timedelta
@@ -9,7 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from .ai import OpenAICompatibleClient
+from .ai import AIResponseError, OpenAICompatibleClient
 from .feishu import send_feishu
 from .models import (
     AIProvider,
@@ -109,12 +110,23 @@ class ReportService:
     def __init__(self, sessions: Any, secrets: SecretBox) -> None:
         self.sessions = sessions
         self.secrets = secrets
+        # ponytail: 单进程全局串行足以保护 SQLite；需要并行报告时再改为数据库级协调。
+        self._run_lock = asyncio.Lock()
 
     async def run(
         self,
         task_id: int,
         deliver: bool = True,
         window: tuple[int, int] | None = None,
+    ) -> Report:
+        async with self._run_lock:
+            return await self._run(task_id, deliver, window)
+
+    async def _run(
+        self,
+        task_id: int,
+        deliver: bool,
+        window: tuple[int, int] | None,
     ) -> Report:
         async with self.sessions() as session:
             task = await session.scalar(
@@ -143,9 +155,12 @@ class ReportService:
                         await self._deliver(report, title, markdown, targets)
                     return cast(Report, report)
                 raise RuntimeError("Report window is already running")
-            run = ReportRun(task_id=task.id, window_start=start, window_end=end)
-            session.add(run)
-            await session.flush()
+            run = ReportRun(
+                task_id=task.id,
+                window_start=start,
+                window_end=end,
+                started_at=now_ms(),
+            )
             source_ids = [item.id for item in task.sources]
             messages = list(
                 (
@@ -201,10 +216,14 @@ class ReportService:
                     run.ai_status = "success"
                 except Exception as exc:
                     run.ai_status = "fallback"
-                    run.error = f"AI fallback: {type(exc).__name__}"
+                    code = exc.code if isinstance(exc, AIResponseError) else type(exc).__name__
+                    run.error = f"AI fallback: {code}"
             local_end = datetime.fromtimestamp(end / 1000, UTC).astimezone(ZoneInfo(task.timezone))
             title = f"{task.name} · {local_end:%Y-%m-%d %H:%M}"
             markdown = render_markdown(title, stats, ai)
+            # AI/网络调用期间不持有 SQLite 写锁；最终结果用一个短事务原子落库。
+            session.add(run)
+            await session.flush()
             report = Report(
                 run_id=run.id,
                 task_id=task.id,

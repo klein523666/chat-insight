@@ -15,7 +15,7 @@ def feishu_signature(timestamp: int, secret: str) -> str:
     return base64.b64encode(hmac.new(key, digestmod=hashlib.sha256).digest()).decode()
 
 
-def split_utf8(text: str, max_bytes: int = 24_000) -> list[str]:
+def split_utf8(text: str, max_bytes: int = 18_000) -> list[str]:
     parts: list[str] = []
     current: list[str] = []
     size = 0

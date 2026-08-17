@@ -70,10 +70,38 @@ services:
     profiles: [qq]
     image: mlikiowa/napcat-docker:v4.18.13
     restart: unless-stopped
+    # NapCat upstream prints login QR URLs to stdout; keep them out of Docker logs.
+    logging:
+      driver: none
+    entrypoint:
+      - /bin/bash
+      - -lc
+      - |
+        for config in /app/napcat/config/napcat.json /app/napcat/config/napcat_[0-9]*.json; do
+          [[ -f "$$config" ]] || continue
+          tmp="$${config}.tmp"
+          jq '.fileLog = false | .consoleLog = true | .consoleLogLevel = "error"' \
+            "$$config" >"$$tmp" && cat "$$tmp" >"$$config"
+          rm -f "$$tmp"
+        done
+        if [[ -z "$$ACCOUNT" ]]; then
+          shopt -s nullglob
+          accounts=(/app/napcat/config/napcat_[0-9]*.json)
+          if (( $${#accounts[@]} == 1 )); then
+            account="$${accounts[0]##*_}"
+            export ACCOUNT="$${account%.json}"
+          fi
+        fi
+        if [[ -s /run/secrets/napcat_quick_password ]]; then
+          export NAPCAT_QUICK_PASSWORD="$$(tr -d '\r\n' </run/secrets/napcat_quick_password)"
+        fi
+        exec /app/entrypoint.sh
     environment:
       MODE: astrbot
+      ACCOUNT: ${NAPCAT_ACCOUNT:-}
       NAPCAT_UID: ${NAPCAT_UID:-1000}
       NAPCAT_GID: ${NAPCAT_GID:-1000}
+    secrets: [napcat_quick_password]
     volumes:
       - astrbot_data:/AstrBot/data
       - napcat_config:/app/napcat/config
@@ -101,3 +129,5 @@ secrets:
     file: ./secrets/setup_token.txt
   tdlib_database_key:
     file: ./secrets/tdlib_database_key.txt
+  napcat_quick_password:
+    file: ./secrets/napcat_quick_password.txt

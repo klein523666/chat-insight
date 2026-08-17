@@ -45,12 +45,17 @@ v0.1.0 包含 QQ/TG 实时采集、来源选择、小时/日报、跨平台报�
 - QQ 无可靠历史补采，AstrBot 插件必须持久化 SQLite Outbox；TG 依赖 TDLib history gap 补采。
 - Scheduled report 的唯一性由 `(task_id, window_start, window_end)` 保证，不能只依赖 Scheduler 内存状态。
 - AI 引用只能返回 message ID，最终原文从数据库回填，不能信任模型生成的 quote。
-- 单张飞书卡片必须小于 30KB，429/5xx/timeout 才重试，其他 4xx 直接失败并记录。
+- 飞书自定义机器人完整请求体必须小于 20KB；正文按 18KB 安全预算分片。
+  429/5xx/timeout 才重试，其他 4xx 直接失败并记录。
+- NapCat v4.18.13/v4.18.19 对部分 QQ 账号无法恢复快速登录，即使 Session、账号与
+  密码回退均正确也会被 QQ 登录接口拒绝。用户已于 2026-08-17 确认将“部分账号
+  重启后需重新扫码”作为 v0.1.0 已知限制，不阻断发布，但必须在 README、安装与
+  Release Notes 明示，不能宣称所有 QQ 账号均可免登录重启。
 
 ## 5. 工作流程与质量标准
 
 - 每次工作前读取本文件。若要修改本文件中的规范，先说明理由并获得用户确认。
 - `progress.md` 记录进度，`findings.md` 记录可验证事实/踩坑，`task_plan.md` 记录大型任务分解，`structure.md` 保持目录说明。
 - 每阶段必须运行对应测试、lint/build，记录变更、架构影响和已知限制。
-- 外部服务 CI 全部 Mock；发布前必须使用专用真实账号完成 QQ、TG、频道、LLM、飞书、重启与故障验收。
+- 外部服务 CI 全部 Mock；发布前必须使用专用真实账号完成 QQ、TG、频道、LLM、飞书、重启与故障验收。QQ 登录态重启按上述已确认的上游限制验收，其余数据、Session 与 Outbox 持久化仍必须通过。
 - 任何未真实验证的能力必须明确标注，不得用 TODO、Mock 或文档声称完成。

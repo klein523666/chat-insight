@@ -2,6 +2,45 @@
 
 ## 2026-08-17
 
+- 两个 22:00 日报同时运行时，旧实现会在 LLM 网络调用期间持有 `report_runs` 的
+  SQLite 写事务，导致另一个任务 `database is locked`，采集和设置写入也可能被
+  阻塞。修复后所有报告入口由共享 `ReportService` 串行，且 `ReportRun` 延后到 AI
+  完成后用短事务原子写入；AI 运行期间独立 SQLite 写入实测 0.0 秒完成。
+- 修复后真实同分钟运行通过：Telegram 日报 1,244 条/14 个活跃来源，混合报告
+  569 条/2 个来源，均为 AI success、飞书 HTTP 200，报告重复窗口为 0。当前
+  DeepSeek 兼容模型处理 858 条小时窗口约 10 分钟、1,244 条日报约 16 分钟；这是
+  Docker Desktop 本机观测，不是 2C4G VPS 结论。
+- NapCat v4.18.13 会把临时登录二维码 URL 直接输出到 stdout，且启动后会把全局
+  consoleLogLevel 改回 info，仅修改配置无法可靠抑制。Compose 因此对 NapCat 单个
+  容器使用 `logging.driver: none`；QQ 扫码与诊断统一通过回环管理页。
+- 完整 Compose restart 后管理员 Session、任务、报告与消息均保留；Telegram 新镜像
+  恢复 `Ready`，验收时至少 3,190 条消息，外部 ID、fallback hash 与
+  报告窗口重复均为 0。Scheduler 自动补偿先前锁库遗漏的 22:00 日报：1,458 条、
+  15 个活跃来源、AI success、飞书 HTTP 200，约耗时 19 分钟。最终 Telegram 镜像内
+  `libtdjson.so` 可由 ctypes 加载。
+
+- 飞书当前自定义机器人官方文档限制完整请求体不超过 20KB；原 24KB 正文分片和
+  30KB 设计记忆已过时。经用户确认，正文预算收紧为 18KB，并用完整 JSON payload
+  回归测试校验低于 20KB。
+
+- QQ 真实验收发现 2 个群且全部默认关闭；启用一个群后消息仅入库一次，account、
+  chat、message、sender 外部 ID 在 SQLite 中均为 text。Core 离线期间 Outbox 从
+  0 增长到 14，恢复后清空；数据库 18 条 QQ 消息对应 18 个不同外部消息 ID，
+  重复键为 0。
+- AstrBot v4.27.3 的 AIOCQHTTP client 直接暴露 `call_action()`，不存在
+  `client.api.call_action()`；群发现还必须跳过 WebChat，并在现有 30 秒同步循环中
+  重试，以覆盖 NapCat 晚于 AstrBot 建连的真实启动时序。
+- 给 AstrBot/NapCat 直接叠加管理端口会在切回基础 Compose 时重建容器，触发上游
+  登录问题。`compose.admin.yml` 现使用独立 Python TCP 代理；移除代理不会改变
+  NapCat 容器 ID，宿主机恢复为只发布 `127.0.0.1:8080`。
+- NapCat 持久配置可从唯一 `napcat_<QQ号>.json` 自动选择账号；多账号可用
+  `NAPCAT_ACCOUNT` 覆盖。可选密码回退只从 Docker secret 读取，并移除 CR/LF，
+  未进入容器配置或日志。
+- 同一专用 QQ 账号在 NapCat v4.18.13 与 v4.18.19 上均出现：账号选择、Session
+  Volume、密码字节和 NapCat 内部 MD5 路径均正确，但 QQ 登录接口仍返回密码错误，
+  无验证码/设备验证/风控提示。用户确认将“部分账号重启后需重新扫码”作为 v0.1.0
+  已知上游限制，不再阻断发布；不得宣称 QQ 登录对所有账号均可持久恢复。
+
 - AstrBot v4.27.3 在插件尚无配置实例时只传入 `context`，且
   `get_astrbot_plugin_data_path()` 不接受插件名参数。QQ Adapter 构造器必须允许
   `config=None`，数据目录应在框架返回的 `plugin_data` 根目录下创建独立子目录；

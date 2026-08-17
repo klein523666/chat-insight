@@ -116,17 +116,22 @@ class ChatInsightQQAdapter(Star):
 
     @filter.on_astrbot_loaded()
     async def discover_groups(self) -> None:
+        await self._discover_groups()
+
+    async def _discover_groups(self) -> None:
         for platform in self.context.platform_manager.get_insts():
+            if platform.meta().name != "aiocqhttp":
+                continue
             try:
                 client = platform.get_client()
-                login = await client.api.call_action("get_login_info")
-                groups = await client.api.call_action("get_group_list")
+                login = await client.call_action("get_login_info")
+                groups = await client.call_action("get_group_list")
                 account_id = str(self._data(login).get("user_id", ""))
                 if account_id:
                     await self._upsert_sources(account_id, self._data(groups) or [])
                     await self._refresh(account_id)
             except Exception as exc:
-                logger.warning("Chat Insight QQ group discovery failed: %s", type(exc).__name__)
+                logger.debug("Chat Insight QQ group discovery deferred: %s", type(exc).__name__)
 
     @staticmethod
     def _data(response: Any) -> Any:
@@ -176,6 +181,7 @@ class ChatInsightQQAdapter(Star):
 
     async def _refresh_loop(self) -> None:
         while True:
+            await self._discover_groups()
             for account_id in list(self.enabled):
                 await self._refresh(account_id)
             await asyncio.sleep(30)
