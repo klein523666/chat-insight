@@ -1,0 +1,9 @@
+name: astrbot_plugin_chat_insight
+display_name: Chat Insight QQ Adapter
+desc: 将已启用 QQ 群消息可靠地发送到 Chat Insight Core。
+version: 0.1.0
+author: Chat Insight contributors
+repo: https://github.com/klein523666/chat-insight
+astrbot_version: ">=4.27.3,<5"
+support_platforms:
+  - aiocqhttp

@@ -1,0 +1,7 @@
+services:
+  astrbot:
+    ports:
+      - "127.0.0.1:6185:6185"
+  napcat:
+    ports:
+      - "127.0.0.1:6099:6099"

@@ -1,0 +1,103 @@
+name: chat-insight
+
+services:
+  chat-insight:
+    image: ${CHAT_INSIGHT_IMAGE:-ghcr.io/klein523666/chat-insight:0.1.0}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.server
+    restart: unless-stopped
+    environment:
+      CHAT_INSIGHT_ENV: production
+      CHAT_INSIGHT_DATA_DIR: /data/core
+      CHAT_INSIGHT_DATABASE_URL: sqlite+aiosqlite:////data/core/chat_insight.db
+      CHAT_INSIGHT_MASTER_KEY_FILE: /run/secrets/master_key
+      CHAT_INSIGHT_COLLECTOR_TOKEN_FILE: /run/secrets/collector_token
+      CHAT_INSIGHT_SETUP_TOKEN_FILE: /run/secrets/setup_token
+      CHAT_INSIGHT_TELEGRAM_URL: http://telegram-collector:8090
+      CHAT_INSIGHT_COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "127.0.0.1:${CHAT_INSIGHT_PORT:-8080}:8080"
+    secrets: [master_key, collector_token, setup_token]
+    volumes:
+      - chat_insight_data:/data/core
+    networks: [chat_insight_net]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  telegram-collector:
+    image: ${TELEGRAM_IMAGE:-ghcr.io/klein523666/chat-insight-telegram:0.1.0}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.telegram
+    restart: unless-stopped
+    environment:
+      CHAT_INSIGHT_CORE_URL: http://chat-insight:8080
+      CHAT_INSIGHT_COLLECTOR_TOKEN_FILE: /run/secrets/collector_token
+      TDLIB_DATABASE_KEY_FILE: /run/secrets/tdlib_database_key
+      TELEGRAM_BACKFILL_HOURS: ${TELEGRAM_BACKFILL_HOURS:-3}
+      TZ: ${TZ:-Asia/Shanghai}
+    secrets: [collector_token, tdlib_database_key]
+    volumes:
+      - telegram_tdlib_data:/data/telegram
+    networks: [chat_insight_net]
+    depends_on:
+      chat-insight:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  astrbot:
+    profiles: [qq]
+    image: soulter/astrbot:v4.27.3
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    secrets: [collector_token]
+    volumes:
+      - astrbot_data:/AstrBot/data
+      - ../integrations/astrbot_plugin_chat_insight:/AstrBot/data/plugins/astrbot_plugin_chat_insight:ro
+    networks: [chat_insight_net]
+
+  napcat:
+    profiles: [qq]
+    image: mlikiowa/napcat-docker:v4.18.13
+    restart: unless-stopped
+    environment:
+      MODE: astrbot
+      NAPCAT_UID: ${NAPCAT_UID:-1000}
+      NAPCAT_GID: ${NAPCAT_GID:-1000}
+    volumes:
+      - astrbot_data:/AstrBot/data
+      - napcat_config:/app/napcat/config
+      - napcat_qq_data:/app/.config/QQ
+    networks: [chat_insight_net]
+    depends_on: [astrbot]
+
+networks:
+  chat_insight_net:
+    driver: bridge
+
+volumes:
+  chat_insight_data:
+  telegram_tdlib_data:
+  astrbot_data:
+  napcat_config:
+  napcat_qq_data:
+
+secrets:
+  master_key:
+    file: ./secrets/master_key.txt
+  collector_token:
+    file: ./secrets/collector_token.txt
+  setup_token:
+    file: ./secrets/setup_token.txt
+  tdlib_database_key:
+    file: ./secrets/tdlib_database_key.txt

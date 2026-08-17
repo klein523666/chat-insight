@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+      - run: pip install --require-hashes -r requirements-dev.lock
+      - run: pip install --no-deps -e .
+      - run: ruff check src tests integrations migrations
+      - run: pytest -q
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.19.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24", cache: pnpm, cache-dependency-path: apps/web/pnpm-lock.yaml }
+      - working-directory: apps/web
+        run: pnpm install --frozen-lockfile && pnpm run lint && pnpm run test && pnpm run build
+      - run: mkdir -p deploy/secrets && for x in master_key collector_token setup_token tdlib_database_key; do echo test-secret > deploy/secrets/$x.txt; done
+      - working-directory: deploy
+        run: docker compose --profile qq config --quiet
+      - run: docker build -f deploy/Dockerfile.server -t chat-insight:test .
+
+  telegram-image:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f deploy/Dockerfile.telegram -t chat-insight-telegram:test .

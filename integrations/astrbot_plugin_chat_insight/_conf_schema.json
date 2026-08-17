@@ -1,0 +1,17 @@
+{
+  "core_url": {
+    "description": "Chat Insight Core 内部地址",
+    "type": "string",
+    "default": "http://chat-insight:8080"
+  },
+  "collector_token": {
+    "description": "Collector Token（与 Compose secret 保持一致）",
+    "type": "string",
+    "default": ""
+  },
+  "collector_token_file": {
+    "description": "Docker secret 文件路径（优先于明文 Token）",
+    "type": "string",
+    "default": "/run/secrets/collector_token"
+  }
+}
