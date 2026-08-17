@@ -2,7 +2,7 @@ name: chat-insight
 
 services:
   chat-insight:
-    image: ${CHAT_INSIGHT_IMAGE:-ghcr.io/klein523666/chat-insight:0.1.0}
+    image: ${CHAT_INSIGHT_IMAGE:-ghcr.io/klein523666/chat-insight:0.1.1}
     build:
       context: ..
       dockerfile: deploy/Dockerfile.server
@@ -30,7 +30,7 @@ services:
       retries: 5
 
   telegram-collector:
-    image: ${TELEGRAM_IMAGE:-ghcr.io/klein523666/chat-insight-telegram:0.1.0}
+    image: ${TELEGRAM_IMAGE:-ghcr.io/klein523666/chat-insight-telegram:0.1.1}
     build:
       context: ..
       dockerfile: deploy/Dockerfile.telegram

@@ -187,7 +187,11 @@ class ReportService:
                         self.secrets.decrypt(provider.api_key_encrypted) or "",
                         provider.model,
                     )
-                    ai = await client.analyze(messages, provider.max_input_chars)
+                    ai = await client.analyze(
+                        messages,
+                        provider.max_input_chars,
+                        task.report_prompt if task.prompt_mode == "custom" else "",
+                    )
                     by_id = {message.id: message for message in messages}
                     allowed = set(by_id)
                     for topic in ai.topics:

@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-18
+
+### Added
+
+- Report tasks can now be edited from the WebUI, including sources, schedule, delivery targets,
+  enabled state, and report prompt controls.
+- Each report task supports either adaptive analysis based on the current report-window data or a
+  custom operator-provided report prompt.
+- Report tasks can be deleted after confirmation; future scheduled runs are removed immediately.
+
+### Changed
+
+- Deleting a report task also removes its related runs, reports, and delivery logs through the
+  existing foreign-key cascade. Sources, accounts, AI configuration, and delivery targets remain.
+
 ## [0.1.0] - 2026-08-17
 
 ### Added

@@ -14,6 +14,7 @@ from chat_insight.schemas import AIAnalysis
 
 def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
     delivered: list[str] = []
+    analysis_prompts: list[str] = []
     database_path = tmp_path / "test.db"
 
     async def fake_delivery(webhook, secret, title, markdown):
@@ -22,7 +23,8 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
         delivered.append(title)
         return DeliveryResult(True, 200, None, 1)
 
-    async def fake_analysis(self, messages, max_input_chars):
+    async def fake_analysis(self, messages, max_input_chars, report_prompt=""):
+        analysis_prompts.append(report_prompt)
         def write_during_analysis():
             with sqlite3.connect(database_path, timeout=1) as connection:
                 connection.execute("UPDATE report_tasks SET updated_at = updated_at")
@@ -170,11 +172,31 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
             },
         )
         assert task.status_code == 201, task.text
+        updated = client.put(
+            f"/api/v1/report-tasks/{task.json()['id']}",
+            headers=user_headers,
+            json={
+                "name": "AI 小时报（运营）",
+                "source_ids": [source["id"]],
+                "schedule_type": "hourly",
+                "schedule_minute": 0,
+                "timezone": "UTC",
+                "delivery_target_ids": [target.json()["id"]],
+                "prompt_mode": "custom",
+                "report_prompt": "优先整理购买意向与待跟进事项。",
+            },
+        )
+        assert updated.status_code == 200, updated.text
+        listed_task = client.get("/api/v1/report-tasks", headers=user_headers).json()[0]
+        assert listed_task["name"] == "AI 小时报（运营）"
+        assert listed_task["prompt_mode"] == "custom"
+        assert listed_task["report_prompt"] == "优先整理购买意向与待跟进事项。"
         report = client.post(
             f"/api/v1/report-tasks/{task.json()['id']}/run",
             headers=user_headers,
         )
         assert report.status_code == 200, report.text
+        assert analysis_prompts == ["优先整理购买意向与待跟进事项。"]
         detail = client.get(f"/api/v1/reports/{report.json()['report_id']}")
         assert "openai" in detail.json()["markdown"].lower()
         assert delivered == []
@@ -202,6 +224,13 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
         assert client.get("/api/v1/report-tasks", headers=user_headers).json()[0][
             "delivery_target_ids"
         ] == []
+
+        deleted_task = client.delete(
+            f"/api/v1/report-tasks/{task.json()['id']}", headers=user_headers
+        )
+        assert deleted_task.status_code == 200
+        assert client.get("/api/v1/report-tasks", headers=user_headers).json() == []
+        assert client.get("/api/v1/reports", headers=user_headers).json() == []
 
         migrated = client.post(
             "/internal/v1/sources:upsert",

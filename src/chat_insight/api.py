@@ -179,11 +179,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await writer.stop()
             await close_database(engine)
 
-    app = FastAPI(title="Chat Insight", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Chat Insight", version="0.1.1", lifespan=lifespan)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "version": "0.1.0"}
+        return {"status": "ok", "version": "0.1.1"}
 
     @app.get("/api/v1/setup/status")
     async def setup_status(session: AsyncSession = Depends(db_session)) -> dict[str, bool]:
@@ -586,6 +586,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "timezone": row.timezone,
                 "source_ids": [x.id for x in row.sources],
                 "delivery_target_ids": [x.id for x in row.delivery_targets],
+                "prompt_mode": row.prompt_mode,
+                "report_prompt": row.report_prompt,
             }
             for row in rows
         ]
@@ -632,6 +634,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         task.window_type = (
             "previous_complete_hour" if payload.schedule_type == "hourly" else "today_to_fire"
         )
+        task.prompt_mode, task.report_prompt = payload.prompt_mode, payload.report_prompt
         task.sources, task.delivery_targets, task.updated_at = selected_sources, targets, now_ms()
         session.add(task)
         await session.commit()
@@ -657,12 +660,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _: WebSession = Depends(csrf),
         session: AsyncSession = Depends(db_session),
     ) -> dict[str, Any]:
-        row = await session.get(ReportTask, task_id)
+        row = await session.scalar(
+            select(ReportTask)
+            .options(selectinload(ReportTask.sources), selectinload(ReportTask.delivery_targets))
+            .where(ReportTask.id == task_id)
+        )
         if not row:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Task not found")
         row = await save_task(row, payload, session)
         request.app.state.scheduler.sync(row)
         return {"id": row.id, "name": row.name}
+
+    @app.delete("/api/v1/report-tasks/{task_id}")
+    async def delete_task(
+        task_id: int,
+        request: Request,
+        _: WebSession = Depends(csrf),
+        session: AsyncSession = Depends(db_session),
+    ) -> dict[str, str]:
+        row = await session.get(ReportTask, task_id)
+        if not row:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Task not found")
+        await session.delete(row)
+        await session.commit()
+        request.app.state.scheduler.remove(task_id)
+        return {"status": "deleted"}
 
     @app.post("/api/v1/report-tasks/{task_id}/run")
     async def run_task(

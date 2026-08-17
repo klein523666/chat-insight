@@ -108,6 +108,20 @@ class ReportTaskInput(BaseModel):
     schedule_minute: int = Field(default=55, ge=0, le=59)
     timezone: str = Field(default="Asia/Shanghai", min_length=1, max_length=100)
     delivery_target_ids: list[int] = Field(default_factory=list)
+    report_prompt: str = Field(default="", max_length=4_000)
+    prompt_mode: Literal["adaptive", "custom"] = "adaptive"
+
+    @field_validator("report_prompt")
+    @classmethod
+    def validate_report_prompt(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("prompt_mode")
+    @classmethod
+    def validate_prompt_mode(cls, value: str, info: Any) -> str:
+        if value == "custom" and not str(info.data.get("report_prompt", "")).strip():
+            raise ValueError("自定义提示词不能为空")
+        return value
 
 
 class TelegramConfigInput(BaseModel):

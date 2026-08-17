@@ -20,7 +20,7 @@
 * { box-sizing: border-box; }
 html { background: var(--paper); }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--paper); }
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--acid-ink); outline-offset: 2px; }
 
@@ -170,17 +170,38 @@ button:hover { border-color: #82867b; background: var(--surface-muted); }
 .task-layout > :first-child { grid-column: span 5; }
 .task-layout > :last-child { grid-column: span 7; }
 .task-form { box-shadow: none; }
+.form-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; font-size: 14px; }
+.text-button { min-height: auto; padding: 0; border: 0; color: var(--acid-ink); background: transparent; font-size: 11px; }
+.text-button:hover { color: var(--ink); background: transparent; }
+.task-enabled { display: flex; align-items: center; gap: 8px; margin-top: 15px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.task-enabled input { width: 15px; min-height: auto; accent-color: #789100; }
 .choice-block { display: grid; gap: 6px; margin: 23px 0; }
 .choice-block > b { margin-bottom: 3px; }
 .choice-block label { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; min-height: 34px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
 .choice-block input { width: 15px; min-height: auto; padding: 0; accent-color: #789100; }
 .choice-block small { color: var(--muted); font-size: 10px; }
+.prompt-control { display: grid; gap: 10px; padding: 0; margin: 23px 0; border: 0; }
+.prompt-control legend { padding: 0; font-size: 12px; font-weight: 700; }
+.prompt-control > p { margin: -2px 0 3px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.prompt-control label { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 9px; align-items: start; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-muted); }
+.prompt-control input { width: 15px; min-height: auto; margin-top: 2px; padding: 0; accent-color: #789100; }
+.prompt-control label span { display: grid; gap: 3px; }
+.prompt-control label b { font-size: 12px; }
+.prompt-control label small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.prompt-control textarea { width: 100%; min-height: 110px; padding: 10px 11px; resize: vertical; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink); background: var(--surface); font-size: 12px; line-height: 1.55; }
+.prompt-control textarea:focus { border-color: var(--acid-ink); outline: 0; box-shadow: 0 0 0 3px rgba(215, 247, 82, .2); }
 .form-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px 76px; gap: 10px; }
 .task-stack { display: grid; align-content: start; gap: 8px; }
 .task-stack article { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 74px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .task-no { color: var(--muted); font: 700 11px/1 ui-monospace, "Cascadia Code", monospace; }
 .task-stack b { font-size: 13px; }
 .task-stack p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+.task-prompt { display: inline-block; margin-top: 7px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 4px; color: var(--acid-ink); background: #f2f6df; font: 700 9px/1 ui-monospace, "Cascadia Code", monospace; letter-spacing: .04em; }
+.task-state { display: grid; justify-items: end; gap: 8px; }
+.secondary { min-height: auto; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--ink); background: var(--surface); font-size: 11px; }
+.secondary:hover { border-color: var(--acid-ink); background: #f4f8df; }
+.danger-button { color: var(--danger); }
+.danger-button:hover { border-color: var(--danger); color: #8c2e20; background: #fff4f0; }
 .report-archive { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .report-archive > button { display: grid; grid-template-columns: 150px minmax(0, 1fr) 160px 20px; gap: 16px; align-items: center; width: 100%; min-height: 57px; padding: 11px 16px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; text-align: left; }
 .report-archive > button:last-child { border-bottom: 0; }

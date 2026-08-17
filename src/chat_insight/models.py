@@ -153,6 +153,8 @@ class ReportTask(Base):
     schedule_minute: Mapped[int] = mapped_column(Integer, default=55)
     timezone: Mapped[str] = mapped_column(String(100), default="Asia/Shanghai")
     window_type: Mapped[str] = mapped_column(String(40))
+    prompt_mode: Mapped[str] = mapped_column(String(20), default="adaptive")
+    report_prompt: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[int] = mapped_column(Integer, default=now_ms)
     updated_at: Mapped[int] = mapped_column(Integer, default=now_ms)
     sources: Mapped[list[Source]] = relationship(secondary="report_task_sources")

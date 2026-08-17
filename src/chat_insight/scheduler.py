@@ -65,6 +65,11 @@ class SchedulerService:
             replace_existing=True,
         )
 
+    def remove(self, task_id: int) -> None:
+        job_id = f"report-task-{task_id}"
+        if self.scheduler.get_job(job_id):
+            self.scheduler.remove_job(job_id)
+
     async def _run(self, task_id: int) -> None:
         try:
             await self.reports.run(task_id, deliver=True)
