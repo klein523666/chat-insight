@@ -15,6 +15,7 @@ from chat_insight.schemas import AIAnalysis
 def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
     delivered: list[str] = []
     analysis_prompts: list[str] = []
+    refined_prompts: list[str] = []
     database_path = tmp_path / "test.db"
 
     async def fake_delivery(webhook, secret, title, markdown):
@@ -32,8 +33,15 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
         await asyncio.to_thread(write_during_analysis)
         return AIAnalysis(summary="AI 分析成功", conclusion="完成")
 
+    async def fake_refine(self, current_prompt, messages, max_input_chars):
+        refined_prompts.append(current_prompt)
+        return "下一轮优先归纳高意向需求。"
+
     monkeypatch.setattr("chat_insight.reports.send_feishu", fake_delivery)
     monkeypatch.setattr("chat_insight.reports.OpenAICompatibleClient.analyze", fake_analysis)
+    monkeypatch.setattr(
+        "chat_insight.reports.OpenAICompatibleClient.refine_report_prompt", fake_refine
+    )
     settings = Settings(
         database_url=f"sqlite+aiosqlite:///{database_path.as_posix()}",
         data_dir=tmp_path,
@@ -182,14 +190,14 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
                 "schedule_minute": 0,
                 "timezone": "UTC",
                 "delivery_target_ids": [target.json()["id"]],
-                "prompt_mode": "custom",
+                "prompt_mode": "adaptive",
                 "report_prompt": "优先整理购买意向与待跟进事项。",
             },
         )
         assert updated.status_code == 200, updated.text
         listed_task = client.get("/api/v1/report-tasks", headers=user_headers).json()[0]
         assert listed_task["name"] == "AI 小时报（运营）"
-        assert listed_task["prompt_mode"] == "custom"
+        assert listed_task["prompt_mode"] == "adaptive"
         assert listed_task["report_prompt"] == "优先整理购买意向与待跟进事项。"
         report = client.post(
             f"/api/v1/report-tasks/{task.json()['id']}/run",
@@ -197,6 +205,9 @@ def test_core_setup_ingest_and_report(tmp_path, monkeypatch):
         )
         assert report.status_code == 200, report.text
         assert analysis_prompts == ["优先整理购买意向与待跟进事项。"]
+        assert refined_prompts == ["优先整理购买意向与待跟进事项。"]
+        iterated_task = client.get("/api/v1/report-tasks", headers=user_headers).json()[0]
+        assert iterated_task["report_prompt"] == "下一轮优先归纳高意向需求。"
         detail = client.get(f"/api/v1/reports/{report.json()['report_id']}")
         assert "openai" in detail.json()["markdown"].lower()
         assert delivered == []

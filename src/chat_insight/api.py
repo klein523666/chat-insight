@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .ai import OpenAICompatibleClient
+from .ai import DEFAULT_REPORT_PROMPT, OpenAICompatibleClient
 from .config import Settings
 from .database import close_database, create_database, upgrade_database
 from .feishu import send_feishu
@@ -179,11 +179,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await writer.stop()
             await close_database(engine)
 
-    app = FastAPI(title="Chat Insight", version="0.1.1", lifespan=lifespan)
+    app = FastAPI(title="Chat Insight", version="0.1.2", lifespan=lifespan)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "version": "0.1.1"}
+        return {"status": "ok", "version": "0.1.2"}
 
     @app.get("/api/v1/setup/status")
     async def setup_status(session: AsyncSession = Depends(db_session)) -> dict[str, bool]:
@@ -587,7 +587,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "source_ids": [x.id for x in row.sources],
                 "delivery_target_ids": [x.id for x in row.delivery_targets],
                 "prompt_mode": row.prompt_mode,
-                "report_prompt": row.report_prompt,
+                "report_prompt": row.report_prompt.strip() or DEFAULT_REPORT_PROMPT,
             }
             for row in rows
         ]

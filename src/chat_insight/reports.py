@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from .ai import AIResponseError, OpenAICompatibleClient
+from .ai import DEFAULT_REPORT_PROMPT, AIResponseError, OpenAICompatibleClient
 from .feishu import send_feishu
 from .models import (
     AIProvider,
@@ -187,11 +187,8 @@ class ReportService:
                         self.secrets.decrypt(provider.api_key_encrypted) or "",
                         provider.model,
                     )
-                    ai = await client.analyze(
-                        messages,
-                        provider.max_input_chars,
-                        task.report_prompt if task.prompt_mode == "custom" else "",
-                    )
+                    current_prompt = task.report_prompt.strip() or DEFAULT_REPORT_PROMPT
+                    ai = await client.analyze(messages, provider.max_input_chars, current_prompt)
                     by_id = {message.id: message for message in messages}
                     allowed = set(by_id)
                     for topic in ai.topics:
@@ -218,6 +215,16 @@ class ReportService:
                     for quote in ai.important_quotes:
                         quote.text = by_id[quote.evidence_message_ids[0]].text
                     run.ai_status = "success"
+                    if task.prompt_mode == "adaptive":
+                        try:
+                            next_prompt = await client.refine_report_prompt(
+                                current_prompt, messages, provider.max_input_chars
+                            )
+                            if next_prompt:
+                                task.report_prompt = next_prompt
+                                task.updated_at = now_ms()
+                        except AIResponseError:
+                            pass
                 except Exception as exc:
                     run.ai_status = "fallback"
                     code = exc.code if isinstance(exc, AIResponseError) else type(exc).__name__

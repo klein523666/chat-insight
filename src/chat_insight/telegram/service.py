@@ -333,7 +333,7 @@ class TelegramCollector:
                     "system_language_code": "zh-CN",
                     "device_model": "Chat Insight",
                     "system_version": "Linux",
-                    "application_version": "0.1.1",
+                    "application_version": "0.1.2",
                 }
             )
         elif kind == "authorizationStateReady":

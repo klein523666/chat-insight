@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-18
+
+### Added
+
+- Report tasks now display their current prompt and let operators edit it directly.
+- In automatic mode, a successful report uses the current prompt, then safely evolves and persists
+  the complete prompt for the next report from the current task prompt and raw message data.
+- Manual mode keeps the operator-provided prompt unchanged between reports.
+
 ## [0.1.1] - 2026-08-18
 
 ### Added

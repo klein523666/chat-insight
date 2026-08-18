@@ -6,7 +6,7 @@ Chat Insight 实时采集你有权查看、且明确启用的 QQ 群与 Telegram
 群/超级群/频道消息，统一保存、统计和 AI 分析，并按小时或自然日自动发送
 飞书报告。
 
-> **状态：[v0.1.1 已发布](https://github.com/klein523666/chat-insight/releases/tag/v0.1.1)。**
+> **状态：[v0.1.2 已发布](https://github.com/klein523666/chat-insight/releases/tag/v0.1.2)。**
 > 本机自动化、Telegram、QQ、LLM、飞书、三类报告与有数据重启闭环均已通过；
 > GitHub Actions、公开 GHCR 镜像和匿名拉取已验证。2C4G VPS 性能尚未验证，不会被
 > 描述为“已验证”。
